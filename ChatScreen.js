@@ -95,7 +95,7 @@ const ChatScreen = ({ route }) => {
 
     useEffect(() => {
         scrollViewRef.current.scrollToEnd({ animated: false });
-    }, []);
+    }, [messages]);
 
     useState(() => {
         setCurrentDate(messages.length > 0 ? messages[0].time : '');
