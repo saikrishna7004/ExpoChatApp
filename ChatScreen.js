@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableHighlight, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import io from 'socket.io-client';
+import Config from './config';
+
+const socket = io(Config.BACKEND_URL);
 
 const Message = ({ message, sender, time }) => {
     const isCenter = sender === 'center';
@@ -22,61 +26,65 @@ const randomColor = () => {
     return colors[Math.floor(Math.random() * colors.length)];
 };
 
-const ChatScreen = () => {
+const ChatScreen = ({ route }) => {
+    const { username } = route.params;
+    
     const scrollViewRef = useRef();
     const [currentDate, setCurrentDate] = useState('')
-    const [bottomOffset, setBottomOffset] = useState(0);
+    const [inputValue, setInputValue] = useState('')
+    const [messages, setMessages] = useState([
+        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM', userId: '1', peerId: '0' },
+        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM', userId: '1', peerId: '0' },
+        { message: 'Sample center message', sender: 'center', time: '11:35 AM', userId: '1', peerId: '0' },
+        { message: 'Sample sent message', sender: 'right', time: '11:35 AM', userId: '1', peerId: '0' },
+        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM', userId: '1', peerId: '0' },
+        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM', userId: '1', peerId: '0' },
+    ])
 
-    const messages = [
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-        { message: 'Sample received message', sender: 'Alice', time: '11:30 AM' },
-        { message: 'Sample sent message', sender: 'Bob', time: '11:35 AM' },
-        { message: 'Sample center message', sender: 'center', time: '11:35 AM' },
-        { message: 'Sample sent message', sender: 'right', time: '11:35 AM' },
-        { message: 'Another sample received message', sender: 'Alice', time: '11:40 AM' },
-        { message: 'Another sample sent message', sender: 'Bob', time: '11:45 AM' },
-    ];
+    const sendMessage = () => {
+        socket.emit('send', { message: inputValue, roomId: 'general', peerId: 'your_peer_id' });
+        const datetime = new Date().toLocaleTimeString('en-US', {hour: 'numeric', minute: 'numeric', hour12: true});
+        setMessages([...messages, { message: inputValue, sender: 'right', time: datetime }])
+        setInputValue('')
+    };
+
+    useEffect(() => {
+        socket.on('connect', () => {
+            console.log('Connected to the server');
+        });
+
+        socket.emit('new-user-joined', {name: username, userId: socket.id, roomId: 'general', peerId: 'your_peer_id'});
+        socket.emit('join-room', {roomId: 'general', userId: socket.id});
+        
+        // If a new user joins, receive his/her name from the server
+        socket.on('user-joined', ({name, userId, peerId}) => {
+            console.log("User joined ", userId)
+            setMessages([...messages, { message: name + ' joined the chat with peerId ' + peerId, sender: 'center' }])
+        })
+
+        // If someone sends a message, broadcast it to other people
+        socket.on('receive', ({ message, name, userId, peerId }) => {
+            console.log(`${userId} received a message: ${message} from ${name} (${peerId})`);
+            const datetime = new Date().toLocaleTimeString('en-US', {hour: 'numeric', minute: 'numeric', hour12: true});
+            setMessages([...messages, { message, sender: name, time: datetime, userId, peerId }])
+        });
+
+        // If someone leaves the chat, let others know 
+        socket.on('left', (leftUser) => {
+            console.log(`${leftUser} has left the chat`);
+            setMessages([...messages, { message: leftUser + ' left the chat', sender: 'center' }])
+        });
+
+        // Get the list of connected users in a room
+        socket.on('get-users',);
+        socket.emit('users-in-room', users=>{
+            console.log(users)
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, []);
 
     const uniqueSenders = [...new Set(messages.map((msg) => msg.sender))];
     const senderColors = {};
@@ -98,7 +106,6 @@ const ChatScreen = () => {
     const handleScroll = (event) => {
         const { layoutMeasurement, contentSize, contentOffset } = event.nativeEvent;
         const bottomOffset = contentSize.height - contentOffset.y - layoutMeasurement.height;
-        setBottomOffset(bottomOffset);
         setShowDate(bottomOffset >= 30);
     };
 
@@ -115,8 +122,8 @@ const ChatScreen = () => {
                 ))}
             </ScrollView>
             <View style={styles.inputContainer}>
-                <TextInput style={styles.input} placeholder="Message"/>
-                <TouchableHighlight style={styles.sendButton} underlayColor="#3b8b2d">
+                <TextInput style={styles.input} placeholder="Message" value={inputValue} onChangeText={text => setInputValue(text)} />
+                <TouchableHighlight style={styles.sendButton} underlayColor="#3b8b2d" onPress={sendMessage}>
                     <Text style={styles.buttonText}><MaterialCommunityIcons name="send" size={24} color="white" /></Text>
                 </TouchableHighlight>
             </View>
